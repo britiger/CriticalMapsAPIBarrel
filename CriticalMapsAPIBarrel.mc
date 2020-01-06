@@ -10,21 +10,22 @@ using Toybox.Lang;
 module CriticalMapsAPIBarrel {
  
     const BASEURL = "https://api.criticalmaps.net/";
+    const INVALID_NEAREST = 9999;
+    const INVALID_DISTANCE = 9999;
 
     var lastResponse = -1;
-    var numResponse = 0;
     var lastLocation = {};
     var nearestCM = 0;
     var countCM10 = 0;
     var chatText = "";
     
     function getDeviceId() {
-    	var propDeviceId = "";
-    	try {
-        	propDeviceId =  Application.Properties.getValue("deviceId");
+        var propDeviceId = "";
+        try {
+            propDeviceId =  Application.Properties.getValue("deviceId");
         } catch (e instanceof Lang.Exception) {
-        	System.println("Need to define Property deviceId in your Application");
-        	propDeviceId = "";
+            System.println("Need to define Property deviceId in your Application");
+            propDeviceId = "";
         }
         if (propDeviceId == null || propDeviceId.equals("")) {
             // need initalisation
@@ -33,9 +34,9 @@ module CriticalMapsAPIBarrel {
             var mySettings = System.getDeviceSettings();
             propDeviceId = mySettings.uniqueIdentifier;
             try {
-            	Application.Properties.setValue("deviceId", propDeviceId);
+                Application.Properties.setValue("deviceId", propDeviceId);
             } catch (e instanceof Application.ObjectStoreAccessException) {
-            	System.println("Need to set deviceId in app or view.");
+                System.println("Need to set deviceId in app or view.");
             }
         }
         return propDeviceId;
@@ -81,7 +82,6 @@ module CriticalMapsAPIBarrel {
     function callbackCM(responseCode, data) {
         System.println("Response: " + responseCode);
         lastResponse = responseCode;
-        numResponse += 1; 
         if (responseCode == 200) {
             System.println("Data: " + data);
             // Check Structure of response
@@ -92,10 +92,10 @@ module CriticalMapsAPIBarrel {
         return {"responseCode" => responseCode, "nearestCM" => nearestCM, "countCM10" => countCM10, "chatText" => chatText};
     }
     
-    function parseData(data) {		
+    function parseData(data) {
         var locations = data["locations"];
         var devices = locations.keys();
-        var nearest = 9999;
+        var nearest = INVALID_NEAREST;
         var count10 = 0;
         for( var i = 0; i < devices.size(); i += 1 ) {
             var entry = locations.get(devices[i]);
@@ -128,23 +128,36 @@ module CriticalMapsAPIBarrel {
     }
     
     function distanceToLastLocation(lat2, lon2) {
-        // TODO: Check values
+        // Check lastLocation
+        if (lastLocation.isEmpty() || 
+                !lastLocation.hasKey("latitude") || 
+                !lastLocation.hasKey("longitude") ||
+                !(lastLocation["latitude"] instanceof Lang.Number || lastLocation["latitude"] instanceof Lang.Float || lastLocation["latitude"] instanceof Lang.Double) || 
+                !(lastLocation["longitude"] instanceof Lang.Number || lastLocation["longitude"] instanceof Lang.Float || lastLocation["longitude"] instanceof Lang.Double)) {
+            return INVALID_DISTANCE;
+        }
+        // Check lat2 / lon2 input
+        if (lat2 == null || !(lat2 instanceof Lang.Number || lat2 instanceof Lang.Float || lat2 instanceof Lang.Double) ||
+                lon2 == null || !(lon2 instanceof Lang.Number || lon2 instanceof Lang.Float || lon2 instanceof Lang.Double)) {
+            return INVALID_DISTANCE;
+        }
+
         var lat1 = lastLocation["latitude"]/1000000.0;
         var lon1 = lastLocation["longitude"]/1000000.0;
         lat2 = lat2/1000000.0;
         lon2 = lon2/1000000.0;
 
         // source: https://stackoverflow.com/a/21623206
-          var p = 0.017453292519943295;    // Math.PI / 180
+        var p = 0.017453292519943295;    // Math.PI / 180
         var a = 0.5 - Math.cos((lat2 - lat1) * p)/2 + 
-                  Math.cos(lat1 * p) * Math.cos(lat2 * p) * 
-                  (1 - Math.cos((lon2 - lon1) * p))/2;
+                Math.cos(lat1 * p) * Math.cos(lat2 * p) * 
+                (1 - Math.cos((lon2 - lon1) * p))/2;
 
-          return 12742 * Math.asin(Math.sqrt(a)); // 2 * R; R = 6371 km
-      }
+        return 12742 * Math.asin(Math.sqrt(a)); // 2 * R; R = 6371 km
+    }
       
-      function stringReplace(str, find, replace) {
-          var result = str;
+    function stringReplace(str, find, replace) {
+        var result = str;
 
         while (true) {
             var index = result.find(find);
@@ -158,7 +171,7 @@ module CriticalMapsAPIBarrel {
         }
 
         return null; 
-      }
+    }
 
     function MathMin(val1, val2) {
         return val1<val2 ? val1 : val2;
