@@ -2,9 +2,11 @@ using Toybox.Application;
 using Toybox.System;
 using Toybox.Position;
 using Toybox.Time;
+using Toybox.Cryptography;
 using Toybox.Communications;
 using Toybox.Math;
 using Toybox.Lang;
+using Toybox.StringUtil; 
 
 (:background)
 module CriticalMapsAPIBarrel {
@@ -18,8 +20,27 @@ module CriticalMapsAPIBarrel {
     var nearestCM = 0;
     var countCM10 = 0;
     var chatText = "";
-    
+    var deviceIdHash = "";
+
     function getDeviceId() {
+        if (!deviceIdHash.equals("")) {
+            return deviceIdHash;
+        }
+        var hashValue = new Cryptography.Hash({:algorithm => Cryptography.HASH_MD5});
+        var deviceId = getDeviceIdRaw() + Time.today().value();
+        var byteA = StringUtil.convertEncodedString(deviceId, {
+            :fromRepresentation => StringUtil.REPRESENTATION_STRING_PLAIN_TEXT, 
+            :toRepresentation => StringUtil.REPRESENTATION_BYTE_ARRAY });
+            
+        hashValue.update(byteA);
+        deviceIdHash = StringUtil.convertEncodedString(hashValue.digest(), {
+            :fromRepresentation => StringUtil.REPRESENTATION_BYTE_ARRAY,
+            :toRepresentation => StringUtil.REPRESENTATION_STRING_HEX });
+        return deviceIdHash;
+    }
+    
+    function getDeviceIdRaw() {
+        // Get non hashed deviceId
         var propDeviceId = "";
         try {
             propDeviceId =  Application.Properties.getValue("deviceId");
