@@ -26,6 +26,16 @@ module CriticalMapsAPIBarrel {
         if (!deviceIdHash.equals("")) {
             return deviceIdHash;
         }
+        if(Toybox has :Cryptography) {
+            System.println("Device have Cryptography.");
+        } else {
+            // Compatibilty mode for old devices
+            // Use same deviceId every day
+            System.println("Device have no Cryptography! Use DeviceId only.");
+            deviceIdHash = getDeviceIdRaw();
+            return deviceIdHash;
+        }
+        
         var hashValue = new Cryptography.Hash({:algorithm => Cryptography.HASH_MD5});
         var deviceId = getDeviceIdRaw() + Time.today().value();
         var byteA = StringUtil.convertEncodedString(deviceId, {
