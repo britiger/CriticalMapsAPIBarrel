@@ -6,7 +6,8 @@ using Toybox.Cryptography;
 using Toybox.Communications;
 using Toybox.Math;
 using Toybox.Lang;
-using Toybox.StringUtil; 
+using Toybox.StringUtil;
+using Toybox.WatchUi;
 
 (:background)
 module CriticalMapsAPIBarrel {
@@ -21,6 +22,7 @@ module CriticalMapsAPIBarrel {
     var countCM10 = 0;
     var chatText = "";
     var deviceIdHash = "";
+    var mapMarkers = [];
 
     function getDeviceId() {
         if (!deviceIdHash.equals("")) {
@@ -59,9 +61,9 @@ module CriticalMapsAPIBarrel {
             propDeviceId = "";
         }
         if (propDeviceId == null || propDeviceId.equals("")) {
-            // need initalisation
-            // call in non-background for inital set value
-            // setValue is not possible in background
+            // initalisation of application property
+            // need to call in non-background for inital set value
+            // setValue is not possible in background!
             var mySettings = System.getDeviceSettings();
             propDeviceId = mySettings.uniqueIdentifier;
             try {
@@ -76,7 +78,8 @@ module CriticalMapsAPIBarrel {
     function sendPositionData(callbackMethod) {
         var url = BASEURL + "postv2";
     
-        var positionInfo = Position.getInfo();    	
+        var positionInfo = Position.getInfo(); // get current Postion
+        // Check position
         if (positionInfo.accuracy < Position.QUALITY_POOR) {
             // Location not good enough
             return -1; // use last position
@@ -86,6 +89,7 @@ module CriticalMapsAPIBarrel {
         System.println("Longitude: " + myLocation[1]); 
         System.println("Accu: " + positionInfo.accuracy);    
 
+        // Check Position can be real or it's only a dummy
         if (myLocation[0] >= 179 || (myLocation[0] == 0 && myLocation[1] == 0)){
             return -2;
         }
@@ -93,7 +97,9 @@ module CriticalMapsAPIBarrel {
             "latitude" => myLocation[0]*1000000,
             "longitude" => myLocation[1]*1000000
         };
+        // save valid location
         lastLocation = location;
+        // setting parameters for sending to critical maps api
         var parms = {
             "location" => location,
             "device" => getDeviceId()
@@ -113,6 +119,7 @@ module CriticalMapsAPIBarrel {
     function callbackCM(responseCode, data) {
         System.println("Response: " + responseCode);
         lastResponse = responseCode;
+        mapMarkers = [];
         if (responseCode == 200) {
             System.println("Data: " + data);
             // Check Structure of response
@@ -120,7 +127,7 @@ module CriticalMapsAPIBarrel {
                 parseData(data);
             }
         }
-        return {"responseCode" => responseCode, "nearestCM" => nearestCM, "countCM10" => countCM10, "chatText" => chatText};
+        return {"responseCode" => responseCode, "nearestCM" => nearestCM, "countCM10" => countCM10, "chatText" => chatText, "mapMarkers" => mapMarkers};
     }
     
     function parseData(data) {
@@ -136,6 +143,15 @@ module CriticalMapsAPIBarrel {
             if (dist < 10) { // TODO: Should be configurable
                 count10 += 1;
             }
+            // Add location to list of marker
+            mapMarkers.add(new WatchUi.MapMarker(
+                new Position.Location({
+                    :latitude  => entry["latitude"]/1000000.0,
+                    :longitude => entry["longitude"]/1000000.0,
+                    :format => :degrees
+                })
+              )
+            );
         }
         nearestCM = nearest;
         countCM10 = count10;
