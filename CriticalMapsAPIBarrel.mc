@@ -112,6 +112,9 @@ module CriticalMapsAPIBarrel {
                                                                     // set response type
            :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
            };
+        if(callbackMethod == null) {
+            callbackMethod = new Lang.Method(CriticalMapsAPIBarrel, :onReceive);
+        }
         Communications.makeWebRequest(url, parms, options, callbackMethod);
         return 0;
     }
@@ -130,6 +133,16 @@ module CriticalMapsAPIBarrel {
         return {"responseCode" => responseCode, "nearestCM" => nearestCM, "countCM10" => countCM10, "chatText" => chatText, "mapMarkers" => mapMarkers};
     }
     
+    // dummy-callback function
+    function onReceive(responseCode, data) {
+       if (responseCode == 200) {
+           System.println("Request Successful");                   // print success
+       }
+       else {
+           System.println("Response: " + responseCode);            // print response code
+       }
+    }
+
     function parseData(data) {
         var locations = data["locations"];
         var devices = locations.keys();
